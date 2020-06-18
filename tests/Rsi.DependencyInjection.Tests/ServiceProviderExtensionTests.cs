@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using NSubstitute.Extensions;
-using Rsi.DependencyInjection.Testing;
 using Xunit;
 
 namespace Rsi.DependencyInjection.Tests
@@ -19,8 +18,6 @@ namespace Rsi.DependencyInjection.Tests
 			services.AddTransient<ITestService<MarkerType>>(sp => rootService);
 			services.AddTransient<ITestService<string>, TestService<string>>();
 
-			services.DecorateServicesForTesting(t => t.IsMockable());
-			
 			var rootServiceProvider = services.BuildServiceProvider();
 
 			var currentScopeServiceProvider = rootServiceProvider.GetCurrentScopeServiceProvider();
@@ -39,9 +36,9 @@ namespace Rsi.DependencyInjection.Tests
 				
 				currentScopeServiceProvider = rootServiceProvider.GetCurrentScopeServiceProvider();
 				
-				Assert.NotSame(rootServiceProvider, nestedScope.ServiceProvider);
+				Assert.NotSame(rootServiceProvider, ((NestedServiceProvider)nestedScope.ServiceProvider).RootServiceProvider);
 				
-				Assert.Same(currentScopeServiceProvider, nestedScope.ServiceProvider);
+				Assert.NotSame(currentScopeServiceProvider, ((NestedServiceProvider)nestedScope.ServiceProvider).RootServiceProvider);
 			}
 			
 			currentScopeServiceProvider = rootServiceProvider.GetCurrentScopeServiceProvider();
@@ -58,7 +55,6 @@ namespace Rsi.DependencyInjection.Tests
 			services.AddTransient<ITestService<MarkerType>>(sp => initialService);
 			services.AddTransient<ITestService<string>, TestService<string>>();
 
-			services.DecorateServicesForTesting(t => t.IsMockable());
 			var rootServiceProvider = services.BuildServiceProvider();
 
 			using var nestedScope = rootServiceProvider.CreateScope(mockServices =>
@@ -75,7 +71,6 @@ namespace Rsi.DependencyInjection.Tests
 
 			services.Configure<TestOptions>(options => options.Name = "Before");
 			
-			services.DecorateServicesForTesting(t => t.IsMockable());
 			var rootServiceProvider = services.BuildServiceProvider();
 
 			using var nestedScope = rootServiceProvider.CreateScope(mockServices =>
@@ -99,7 +94,6 @@ namespace Rsi.DependencyInjection.Tests
 
 			services.Configure<TestOptions>(options => options.Name = "Before");
 			
-			services.DecorateServicesForTesting(t => t.IsMockable());
 			var rootServiceProvider = services.BuildServiceProvider();
 
 			using var nestedScope = rootServiceProvider.CreateScope(mockServices =>
@@ -119,8 +113,6 @@ namespace Rsi.DependencyInjection.Tests
 			services.AddTransient<ITestService<MarkerType>>(sp => rootService);
 			services.AddTransient<ITestService<string>, TestService<string>>();
 
-			services.DecorateServicesForTesting(t => t.IsMockable());
-			
 			var rootServiceProvider = services.BuildServiceProvider();
 
 			var nestedService = new TestService<MarkerType>();
@@ -148,8 +140,6 @@ namespace Rsi.DependencyInjection.Tests
 			services.AddTransient<ITestService<MarkerType>>(sp => rootService);
 			services.AddTransient<ITestService<string>, TestService<string>>();
 
-			services.DecorateServicesForTesting(t => t.IsMockable());
-			
 			var rootServiceProvider = services.BuildServiceProvider();
 
 			var nestedService = new TestService<MarkerType>();

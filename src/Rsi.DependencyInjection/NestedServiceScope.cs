@@ -3,10 +3,29 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Rsi.DependencyInjection
 {
-	internal class NestedServiceScope : IServiceScope
+	public class NestedServiceProvider : IServiceProvider
+	{
+		public NestedServiceProvider(IServiceProvider rootServiceProvider, NestedServiceScope nestedServiceScope)
+		{
+			RootServiceProvider = rootServiceProvider;
+			NestedServiceScope = nestedServiceScope;
+		}
+
+		public IServiceProvider RootServiceProvider { get; }
+
+		public NestedServiceScope NestedServiceScope { get; }
+
+		public object GetService(Type serviceType)
+		{
+			return NestedServiceScope.ServiceScope.ServiceProvider.GetService(serviceType);
+		}
+	}
+
+	public class NestedServiceScope : IServiceScope
 	{
 		private static readonly AsyncLocal<Dictionary<IServiceProvider, NestedServiceScope>> _currentByRootServiceProvider = new AsyncLocal<Dictionary<IServiceProvider, NestedServiceScope>>();
 		private static readonly AsyncLocal<Dictionary<IServiceCollection, NestedServiceScope>> _currentByRootServices = new AsyncLocal<Dictionary<IServiceCollection, NestedServiceScope>>();
@@ -15,29 +34,20 @@ namespace Rsi.DependencyInjection
 
 		private IServiceCollection Services { get; }
 		private NestedServiceScope ParentScope { get; }
-		private IServiceScope ServiceScope { get; }
+		public IServiceScope ServiceScope { get; }
 		private NestedServiceProvider NestedProvider { get; }
-
-		private class NestedServiceProvider : IServiceProvider
-		{
-			public NestedServiceProvider(IServiceProvider rootServiceProvider, NestedServiceScope nestedServiceScope)
-			{
-				RootServiceProvider = rootServiceProvider;
-				NestedServiceScope = nestedServiceScope;
-			}
-			
-			public IServiceProvider RootServiceProvider { get; }
-			
-			public NestedServiceScope NestedServiceScope { get; }
-
-			public object GetService(Type serviceType)
-			{
-				return NestedServiceScope.ServiceScope.ServiceProvider.GetService(serviceType);
-			}
-		}
 
 		public NestedServiceScope(IServiceProvider serviceProvider, Action<IServiceCollection> servicesConfiguration)
 		{
+			var temp = new ServiceCollection();
+			var descriptors = serviceProvider.GetDescriptors();
+			foreach (var descriptor in descriptors)
+				temp.TryAdd(descriptor.Value);
+
+			temp.DecorateServicesForTesting(t => true);
+
+			serviceProvider = temp.BuildServiceProvider();
+
 			if (serviceProvider is NestedServiceProvider nestedParentServiceProvider)
 			{
 				NestedProvider = new NestedServiceProvider(nestedParentServiceProvider.RootServiceProvider, this);
